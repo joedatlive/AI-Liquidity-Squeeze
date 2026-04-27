@@ -1,0 +1,21 @@
+{
+  "macro_params": {
+    "initial_population": 330000000,
+    "poverty_line_annual": 15000
+  },
+  "ai_impact": {
+    "annual_labor_displacement_rate": 0.08,
+    "ai_cost_reduction_multiplier": 0.2
+  },
+  "stabilizers": {
+    "utility_labor_absorption_ratio": 0.12,
+    "utility_wage_premium": 1.10
+  },
+  "consumption_logic": {
+    "mpc_utility_worker": 0.85,
+    "mpc_displaced": 1.0
+  },
+  "simulation_params": {
+    "steps_months": 120
+  }
+}
