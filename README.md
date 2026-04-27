@@ -13,3 +13,11 @@ https://colab.research.google.com/drive/1d7Nw3-fBQgLxm-IkDWP1x9nof0XsYrJ5?usp=dr
 
 # Related Research:
 Research Specification describing this model: https://papers.ssrn.com/abstract=6650278
+
+# Contact
+Research Specification: The AI-Driven Liquidity Squeeze
+Research Lead: Joseph J Donahue, joe@idam05.com
+Technical Portfolio: idam05.com
+Academic Profile: 
+Google Scholar: https://scholar.google.com/citations?user=ZFA1PhgAAAAJ&hl=en
+SSRN author page: https://papers.ssrn.com/sol3/cf_dev/AbsByAuth.cfm?per_id=11025548
