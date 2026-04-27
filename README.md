@@ -7,3 +7,9 @@ Operating on a differential Marginal Propensity to Consume (MPC), the simulation
 - AI Cost Reduction Multiplier: 0.2.
 - Utility Labor Absorption Ratio: 0.12 (The rate at which the "Physical Floor" hires the Displaced Pool).
 - Subsistence Floor: Defined by the $15,000/year poverty line. 
+
+# Interactive model
+https://colab.research.google.com/drive/1d7Nw3-fBQgLxm-IkDWP1x9nof0XsYrJ5?usp=drive_link
+
+# Related Research:
+Research Specification describing this model: https://papers.ssrn.com/abstract=6650278
