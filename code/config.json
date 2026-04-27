@@ -13,7 +13,8 @@
   },
   "consumption_logic": {
     "mpc_utility_worker": 0.85,
-    "mpc_displaced": 1.0
+    "mpc_displaced": 1.0,
+    "solvency_runway_months": 12
   },
   "simulation_params": {
     "steps_months": 120

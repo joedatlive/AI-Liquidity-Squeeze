@@ -13,6 +13,8 @@ class EconomySim:
         self.utility_workers = self.pop * 0.05  # Assume 5% start in utilities
         self.active_workers = self.pop * 0.55   # Assume 55% start in other sectors
         self.capital_owners = self.pop * 0.01   # Top 1%
+        self.displaced_history = [] # Tracks [number_of_people, months_unemployed]
+        self.enervated_total = 0     # People who have run out of money
 
         self.history = [] # To track data for analysis
         self.is_collapsed = False
@@ -35,13 +37,33 @@ class EconomySim:
         self.utility_workers += new_utility_jobs
         self.displaced += (new_displacement - new_utility_jobs)
 
+        # New Displacement added to the queue
+        self.displaced_history.append([new_displacement - new_utility_jobs, 0])
+
+        # Financial Exhaustion Logic: default is 6 Months of Runway of no value in config.json (Industry Standard)
+        runway_months = self.c['consumption_logic'].get('solvency_runway_months', 6) 
+        
+        current_displaced_consumption = 0
+        self.enervated_total = 0
+        
+        for record in self.displaced_history:
+            record[1] += 1 # Age the unemployment duration
+            if record[1] <= runway_months:
+                # Still have some savings/credit to spend at poverty line
+                current_displaced_consumption += (record[0] * self.c['macro_params']['poverty_line_annual'] / 12)
+            else:
+                # Exhausted: No longer part of the economy
+                self.enervated_total += record[0]
+
+        # Update consumption to use the DECAYED amount
+        cons_displaced = current_displaced_consumption * self.c['consumption_logic']['mpc_displaced']
+
         # 4. Consumption Calculation (Purchasing Power)
         # Wages stay steady in nominal terms but are 'worth more' as prices drop
         base_wage = 5000
 
         cons_util = (self.utility_workers * base_wage) * self.c['consumption_logic']['mpc_utility_worker']
         cons_active = (self.active_workers * base_wage) * 0.75 # Standard MPC
-        cons_displaced = (self.displaced * self.c['macro_params']['poverty_line_annual'] / 12) * self.c['consumption_logic']['mpc_displaced']
 
         total_cons = (cons_util + cons_active + cons_displaced) / self.price_index
 
@@ -59,6 +81,7 @@ class EconomySim:
             "price_index": round(self.price_index, 4),
             "unemployment_rate": round(self.displaced / self.pop, 4),
             "total_consumption": round(total_cons, 2),
+            "enervated_agents": int(self.enervated_total),
             "status": status
         })
         return status
@@ -83,8 +106,7 @@ if __name__ == "__main__":
         # Initialize and Run
         sim = EconomySim(data)
         months_to_run = data['simulation_params']['steps_months'] if 'simulation_params' in data else 120
-
-        print(f"{'Month':<10} | {'Price Index':<12} | {'Unemployment':<12} | {'Status'}")
+        print(f"{'Month':<10} | {'Price Index':<12} | {'Unemployment':<12} | {'Enervated':<12} | {'Status'}")
         print("-" * 55)
 
         for m in range(1, months_to_run + 1):
@@ -93,7 +115,7 @@ if __name__ == "__main__":
 
             # Print update every 6 months for readability
             if m % 6 == 0 or result == "COLLAPSED":
-                print(f"{m:<10} | {stats['price_index']:<12} | {stats['unemployment_rate']:<12} | {result}")
+                print(f"{m:<10} | {stats['price_index']:<12} | {stats['unemployment_rate']:<12} | {int(sim.enervated_total):<12} | {result}")
 
             if result == "COLLAPSED":
                 print("\n!!! SYSTEMIC INSOLVENCY REACHED !!!")
