@@ -1,7 +1,12 @@
 # SENSITIVITY TEST: Impact of Displacement with Enervation Tracking
 import json
 import os
-from model import EconomySim
+
+try:
+    from model import EconomySim
+    print("Imported EconomySim from local repo.")
+except ImportError:
+    print("EconomySim already defined in environment (Colab mode).")
 
 config_path = 'config.json'
 
