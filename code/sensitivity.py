@@ -1,6 +1,7 @@
 # SENSITIVITY TEST: Impact of Displacement with Enervation Tracking
 import json
 import os
+import copy
 
 try:
     from model import EconomySim
@@ -19,7 +20,7 @@ displacement_scenarios = [0.05, 0.08, 0.12, 0.15, 0.20]
 
 for rate in displacement_scenarios:
     # 1. Setup Scenario Data
-    test_data = data.copy()
+    copy.deepcopy(data)
     test_data['ai_impact']['annual_labor_displacement_rate'] = rate
     
     print("\n" + "="*70)
