@@ -1,123 +1,160 @@
 import json
 import os
+import random
 
 class EconomySim:
     def __init__(self, config):
-        # Load configuration into class variables
         self.c = config
-        self.pop = config['macro_params']['initial_population']
         self.price_index = 1.0
-
-        # Initial Agent Distribution
-        self.displaced = 0
-        self.utility_workers = self.pop * 0.05  # Assume 5% start in utilities
-        self.active_workers = self.pop * 0.55   # Assume 55% start in other sectors
-        self.capital_owners = self.pop * 0.01   # Top 1%
-        self.displaced_history = [] # Tracks [number_of_people, months_unemployed]
-        self.enervated_total = 0     # People who have run out of money
-
-        self.history = [] # To track data for analysis
+        self.history = []
         self.is_collapsed = False
 
-    def run_step(self, month):
-        # 1. AI Impact: Prices drop at a lag (Cost-Push Deflation)
-        prod_gain = self.c['ai_impact']['ai_cost_reduction_multiplier']
-        stickiness = 0.75 # Hardcoded market friction
-        self.price_index *= (1 - (prod_gain * 0.01 * stickiness))
-
-        # 2. Displacement Logic (White Collar Job Loss)
-        monthly_rate = self.c['ai_impact']['annual_labor_displacement_rate'] / 12
-        new_displacement = self.active_workers * monthly_rate
-        self.active_workers -= new_displacement
-
-        # 3. Stabilizer Absorption (Hiring into Utilities)
-        absorption_rate = self.c['stabilizers']['utility_labor_absorption_ratio']
-        new_utility_jobs = new_displacement * absorption_rate
-
-        self.utility_workers += new_utility_jobs
-        self.displaced += (new_displacement - new_utility_jobs)
-
-        # New Displacement added to the queue
-        self.displaced_history.append([new_displacement - new_utility_jobs, 0])
-
-        # Financial Exhaustion Logic: default is 6 Months of Runway of no value in config.json (Industry Standard)
-        runway_months = self.c['consumption_logic'].get('solvency_runway_months', 6) 
+        # --- 1. POPULATION SEGMENTATION ---
+        # Capital Owners: Small population, wealth capture, low MPC
+        self.capital_owners = self.c['simulation_metadata']['total_workforce'] * 0.01
         
-        current_displaced_consumption = 0
+        # Cognitive Labor Pool (The Displaceable Group)
+        self.cog_labor_total = sum(arch['count'] for arch in self.c['archetypes'].values())
+        self.active_displaceable = self.cog_labor_total
+        
+        # Utility/Essential: Total Workforce - (Cognitive + Owners)
+        self.utility_workers = self.c['simulation_metadata']['total_workforce'] - self.cog_labor_total - self.capital_owners
+
+        # --- 2. DISPLACED SUB-COHORTS ---
+        self.displaced_low_resilience = 0
+        self.displaced_mid_resilience = 0
+        self.displaced_high_resilience = 0
         self.enervated_total = 0
+
+        # --- 3. BASELINE GDP CALCULATION ---
+        # We calculate the starting consumption to serve as our 100% benchmark
+        baseline_cons_owners = self.capital_owners * 12000 * 0.30
+        baseline_cons_utility = self.utility_workers * 4000 * 0.85
+        baseline_cons_active = self.active_displaceable * 5000 * 0.80
         
-        for record in self.displaced_history:
-            record[1] += 1 # Age the unemployment duration
-            if record[1] <= runway_months:
-                # Still have some savings/credit to spend at poverty line
-                current_displaced_consumption += (record[0] * self.c['macro_params']['poverty_line_annual'] / 12)
-            else:
-                # Exhausted: No longer part of the economy
-                self.enervated_total += record[0]
+        # At start, nobody is displaced or enervated
+        self.baseline_gdp = baseline_cons_owners + baseline_cons_utility + baseline_cons_active
 
-        # Update consumption to use the DECAYED amount
-        cons_displaced = current_displaced_consumption * self.c['consumption_logic']['mpc_displaced']
+        # a filter to account for monopoply effects of AI providers on price effeciencies
+        self.price_pass_through = self.c['ai_impact'].get('price_pass_through_rate', 0.5)
 
-        # 4. Consumption Calculation (Purchasing Power)
-        # Wages stay steady in nominal terms but are 'worth more' as prices drop
-        base_wage = 5000
+        # a parameter to set a segment of price effeciency that AI doesn't improve, like land
+        self.sticky_ratio = self.c['ai_impact'].get('sticky_price_ratio', 0.0)
 
-        cons_util = (self.utility_workers * base_wage) * self.c['consumption_logic']['mpc_utility_worker']
-        cons_active = (self.active_workers * base_wage) * 0.75 # Standard MPC
+    def run_step(self, month):
+        # --- PHASE A: WORKFORCE IMPACT ---
+        
+        # 1. Displacement
+        annual_rate = self.c['ai_impact']['annual_labor_displacement_rate']
+        monthly_new_displaced = (self.active_displaceable * (annual_rate / 12))
+        
+        # Distribution: 52% Low, 29% Mid, 19% High
+        self.active_displaceable -= monthly_new_displaced
+        self.displaced_low_resilience += monthly_new_displaced * 0.52
+        self.displaced_mid_resilience += monthly_new_displaced * 0.29
+        self.displaced_high_resilience += monthly_new_displaced * 0.19
 
-        total_cons = (cons_util + cons_active + cons_displaced) / self.price_index
+        # 2. Stabilization (Utility Re-hiring)
+        absorption_ratio = self.c['stabilizers'].get('utility_labor_absorption_ratio', 0.12)
+        monthly_rehire_rate = absorption_ratio / 12
+        
+        rehire_pool = (self.displaced_low_resilience + self.displaced_mid_resilience + self.displaced_high_resilience)
+        if rehire_pool > 0:
+            rehire_amt = rehire_pool * monthly_rehire_rate
+            # Proportional recovery
+            self.displaced_low_resilience -= rehire_amt * 0.52
+            self.displaced_mid_resilience -= rehire_amt * 0.29
+            self.displaced_high_resilience -= rehire_amt * 0.19
+            self.active_displaceable += rehire_amt
 
-        # 5. The Break Check (Insolvency)
-        subsistence_floor = self.pop * (self.c['macro_params']['poverty_line_annual'] / 12)
+        # 3. Enervation (The Gaussian Drain)
+        # Rates based on avg runways: Low (4mo), Mid (13mo), High (33mo)
+        fail_low = self.displaced_low_resilience * (1/4)
+        fail_mid = self.displaced_mid_resilience * (1/13)
+        fail_high = self.displaced_high_resilience * (1/33)
 
+        self.displaced_low_resilience -= fail_low
+        self.displaced_mid_resilience -= fail_mid
+        self.displaced_high_resilience -= fail_high
+        self.enervated_total += (fail_low + fail_mid + fail_high)
+
+        # --- PHASE B: CONSUMPTION & MACRO ---
+        
+        # 4. Deflation (Parameterized)
+        prod_gain = self.c['ai_impact']['ai_cost_reduction_multiplier']
+        
+        # We calculate how much "potential" price drop there is
+        potential_deflation = prod_gain * 0.01 
+        
+        # We apply the 'Pass-Through' rate. 
+        # Lower rate = Higher Monopoly capture.
+        actual_deflation = potential_deflation * self.price_pass_through
+        
+        self.price_index *= (1 - actual_deflation)
+
+        # 5. Consumption Math (The "Squeeze" Calculation)
+        # MPCs applied to standardized monthly spends
+        cons_owners = self.capital_owners * 12000 * 0.30
+        cons_utility = self.utility_workers * 4000 * 0.85
+        cons_active = self.active_displaceable * 5000 * 0.80
+        
+        total_displaced = (self.displaced_low_resilience + self.displaced_mid_resilience + self.displaced_high_resilience)
+        cons_displaced = total_displaced * 2500 * 1.0 # Spending down savings
+
+        # 6. Real Value Adjustment (Blended for Sticky Prices)
+        nominal_cons = (cons_owners + cons_utility + cons_active + cons_displaced)
+        
+        # Calculate the blended index: 60% stays at 1.0 (sticky), 40% drops with AI
+        blended_index = (self.price_index * (1 - self.sticky_ratio)) + (1.0 * self.sticky_ratio)
+        
+        # This is your final Participatory PCE adjusted for reality
+        total_real_cons = nominal_cons / blended_index
+
+        # 7. Break Check (The Systemic Snap)
+        # We check two conditions: Social Fracture (Admin Crisis) and Economic Snap (Collapse)
+        
+        enervation_rate = self.enervated_total / self.c['simulation_metadata']['total_workforce']
+        
+        # Calculate the 'GDP Gap'
+        # What percentage of our healthy baseline is the current real consumption?
+        gdp_retention_ratio = total_real_cons / self.baseline_gdp
+        
         status = "STABLE"
-        if total_cons < subsistence_floor:
+        
+        # HYPOTHESIS TRIGGER: 
+        # If real consumption falls below 80% of baseline, the system cannot 
+        # sustain the infrastructure/debt of the original economy.
+        if gdp_retention_ratio < 0.80:
             self.is_collapsed = True
             status = "COLLAPSED"
+        # SOCIAL TRIGGER:
+        # If 10% of people have $0, it is a political/administrative crisis.
+        elif enervation_rate > 0.1:
+            status = "ADMIN_CRISIS"
 
-        # Record this month's data
+        # --- PHASE C: LOGGING ---
         self.history.append({
             "month": month,
             "price_index": round(self.price_index, 4),
-            "unemployment_rate": round(self.displaced / self.pop, 4),
-            "total_consumption": round(total_cons, 2),
-            "enervated_agents": int(self.enervated_total),
+            "unemployment_rate": round((self.cog_labor_total - self.active_displaceable) / self.c['simulation_metadata']['total_workforce'], 4),
+            "enervated_total": int(self.enervated_total),
+            "pce_amount": total_real_cons,      # The raw dollar value of personal consumption expendiitures for thos participating in the economy (not the enervated)
+            "gdp_ratio": round(gdp_retention_ratio, 4), # Added for your own tracking
             "status": status
         })
         return status
 
-# --- MAIN EXECUTION BLOCK ---
+# --- MAIN EXECUTION ---
 if __name__ == "__main__":
-    # Check if config exists
-    if not os.path.exists('config.json'):
-        print("Error: config.json not found in the current directory.")
-    else:
-        # Load the JSON file
+    if os.path.exists('config.json'):
         with open('config.json', 'r') as f:
             data = json.load(f)
-
-        # DISPLAY CONFIG ---
-        print("\n" + "="*40)
-        print("RUN INITIALIZED WITH CONFIGURATION:")
-        print(json.dumps(data, indent=4))
-        print("="*40 + "\n")
-        # -----------------------------------------
-
-        # Initialize and Run
         sim = EconomySim(data)
-        months_to_run = data['simulation_params']['steps_months'] if 'simulation_params' in data else 120
-        print(f"{'Month':<10} | {'Price Index':<12} | {'Unemployment':<12} | {'Enervated':<12} | {'Status'}")
-        print("-" * 55)
-
-        for m in range(1, months_to_run + 1):
-            result = sim.run_step(m)
+        print(f"{'Month':<10} | {'Price Index':<12} | {'Unemployment':<12} | {'Enervated':<12} | {'P-PCE ($B)':<10} | {'PCE %':<8}| {'Status'}")
+        for m in range(1, data['simulation_metadata']['steps_months'] + 1):
+            res = sim.run_step(m)
             stats = sim.history[-1]
-
-            # Print update every 6 months for readability
-            if m % 6 == 0 or result == "COLLAPSED":
-                print(f"{m:<10} | {stats['price_index']:<12} | {stats['unemployment_rate']:<12} | {int(sim.enervated_total):<12} | {result}")
-
-            if result == "COLLAPSED":
-                print("\n!!! SYSTEMIC INSOLVENCY REACHED !!!")
-                print(f"The economy failed at Month {m} because aggregate demand fell below subsistence levels.")
-                break
+            pce_billions = stats['pce_amount'] / 1e9  # Convert to Billions
+            if m % 6 == 0 or res == "COLLAPSED":
+                print(f"{m:<10} | {stats['price_index']:<12} | {stats['unemployment_rate']:<12} | {stats['enervated_total']:<12} | ${pce_billions:>8.1f}B | {stats['gdp_ratio']:<8.2%}| {res}")
+            if res == "COLLAPSED": break

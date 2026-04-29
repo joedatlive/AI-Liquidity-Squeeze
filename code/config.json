@@ -1,22 +1,36 @@
 {
+  "simulation_metadata": {
+    "data_source": "BLS May 2024 OEWS / Fed SCF 2022",
+    "total_workforce": 154187380,
+    "steps_months": 180
+  },
   "macro_params": {
     "initial_population": 330000000,
     "poverty_line_annual": 15000
   },
   "ai_impact": {
     "annual_labor_displacement_rate": 0.08,
-    "ai_cost_reduction_multiplier": 0.2
+    "ai_cost_reduction_multiplier": 0.2,
+    "price_pass_through_rate": 0.40,
+    "deflation_scaling_factor": 0.01,
+    "sticky_price_ratio": 0.6
   },
   "stabilizers": {
-    "utility_labor_absorption_ratio": 0.12,
+    "utility_labor_absorption_ratio": 0.25,
     "utility_wage_premium": 1.10
   },
-  "consumption_logic": {
-    "mpc_utility_worker": 0.85,
-    "mpc_displaced": 1.0,
-    "solvency_runway_months": 12
-  },
-  "simulation_params": {
-    "steps_months": 120
+  "archetypes": {
+    "low_resilience": {
+      "count": 18218070,
+      "runway_range": [2, 6]
+    },
+    "mid_resilience": {
+      "count": 10351440,
+      "runway_range": [9, 18]
+    },
+    "high_resilience": {
+      "count": 6620540,
+      "runway_range": [24, 48]
+    }
   }
 }
