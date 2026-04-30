@@ -65,7 +65,9 @@ class EconomySim:
             self.displaced_low_resilience -= rehire_amt * 0.52
             self.displaced_mid_resilience -= rehire_amt * 0.29
             self.displaced_high_resilience -= rehire_amt * 0.19
-            self.active_displaceable += rehire_amt
+            if self.utility_workers < (self.c['simulation_metadata']['total_workforce'] * 0.50):
+                self.utility_workers += rehire_amt
+                
 
         # 3. Enervation (The Gaussian Drain)
         # Rates based on avg runways: Low (4mo), Mid (13mo), High (33mo)
