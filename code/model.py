@@ -70,10 +70,14 @@ class EconomySim:
                 
 
         # 3. Enervation (The Gaussian Drain)
-        # Rates based on avg runways: Low (4mo), Mid (13mo), High (33mo)
-        fail_low = self.displaced_low_resilience * (1/4)
-        fail_mid = self.displaced_mid_resilience * (1/13)
-        fail_high = self.displaced_high_resilience * (1/33)
+        # Rates derived from empirically grounded SCF runway averages
+        avg_low = sum(self.c['archetypes']['low_resilience']['runway_range']) / 2
+        avg_mid = sum(self.c['archetypes']['mid_resilience']['runway_range']) / 2
+        avg_high = sum(self.c['archetypes']['high_resilience']['runway_range']) / 2
+
+        fail_low = self.displaced_low_resilience * (1 / avg_low)
+        fail_mid = self.displaced_mid_resilience * (1 / avg_mid)
+        fail_high = self.displaced_high_resilience * (1 / avg_high)
 
         self.displaced_low_resilience -= fail_low
         self.displaced_mid_resilience -= fail_mid

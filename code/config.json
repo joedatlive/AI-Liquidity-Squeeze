@@ -26,11 +26,11 @@
     },
     "mid_resilience": {
       "count": 10351440,
-      "runway_range": [9, 18]
+      "runway_range": [5, 10]
     },
     "high_resilience": {
       "count": 6620540,
-      "runway_range": [24, 48]
+      "runway_range": [12, 21]
     }
   }
 }
