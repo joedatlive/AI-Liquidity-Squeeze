@@ -6,7 +6,7 @@ This codebase provides a discrete-time simulation of a national economy undergoi
 ## Core Methodology & Phases
 The simulation operates on a monthly step-count, processing the economy through three distinct lenses in each cycle:
 
-1.  **Micro-Displacement:** AI agents replace cognitive labor based on a set annual displacement rate.
+1.  **Cohort-Displacement:** Cohorts of cognitive labor are displaced based on a set annual displacement rate.
 2.  **Macro-Flows:** Calculation of aggregate Personal Consumption Expenditures (PCE) based on the remaining active workforce and the current price index.
 3.  **Status Evaluation:** A systemic health check based on the ratio of current consumption vs. the pre-AI baseline.
 
@@ -41,7 +41,6 @@ As AI reduces production costs, the model tracks a **Price Index**.
 | :--- | :--- | :--- |
 | **STABLE** | > 90% PCE | The economy is absorbing displacement via savings or price drops. |
 | **ADMIN_CRISIS** | > 15M Enervated | Social infrastructure and safety nets are overwhelmed by the un-liquified population. |
-| **LIQUIDITY_TRAP** | < 85% PCE | Aggregate demand falls faster than the price index can compensate. |
 | **COLLAPSED** | < 80% PCE | Systemic failure; the circular flow of the economy is no longer sustainable. |
 
 ## Usage
