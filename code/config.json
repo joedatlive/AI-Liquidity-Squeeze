@@ -2,7 +2,7 @@
   "simulation_metadata": {
     "data_source": "BLS May 2024 OEWS / Fed SCF 2022",
     "total_workforce": 154187380,
-    "steps_months": 180
+    "steps_months": 120
   },
   "macro_params": {
     "initial_population": 330000000,
@@ -32,5 +32,14 @@
       "count": 6620540,
       "runway_range": [12, 21]
     }
-  }
+  },
+  "consumption_logic": {
+    "mpc_capital_owner": 0.30,
+    "monthly_spend_capital_owner": 12000,
+    "mpc_utility_worker": 0.85,
+    "monthly_spend_utility_worker": 4000,
+    "mpc_active_worker": 0.80,
+    "monthly_spend_active_worker": 5000,
+    "monthly_spend_displaced": 2500
+}
 }

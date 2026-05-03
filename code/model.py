@@ -99,13 +99,15 @@ class EconomySim:
         self.price_index *= (1 - actual_deflation)
 
         # 5. Consumption Math (The "Squeeze" Calculation)
-        # MPCs applied to standardized monthly spends
-        cons_owners = self.capital_owners * 12000 * 0.30
-        cons_utility = self.utility_workers * 4000 * 0.85
-        cons_active = self.active_displaceable * 5000 * 0.80
-        
+        # MPCs and monthly spends read from config
+        cl = self.c['consumption_logic']
+
+        cons_owners = self.capital_owners * cl['monthly_spend_capital_owner'] * cl['mpc_capital_owner']
+        cons_utility = self.utility_workers * cl['monthly_spend_utility_worker'] * cl['mpc_utility_worker']
+        cons_active = self.active_displaceable * cl['monthly_spend_active_worker'] * cl['mpc_active_worker']
+
         total_displaced = (self.displaced_low_resilience + self.displaced_mid_resilience + self.displaced_high_resilience)
-        cons_displaced = total_displaced * 2500 * 1.0 # Spending down savings
+        cons_displaced = total_displaced * cl['monthly_spend_displaced'] * 1.0  # Spending down savings, MPC = 1.0
 
         # 6. Real Value Adjustment (Blended for Sticky Prices)
         nominal_cons = (cons_owners + cons_utility + cons_active + cons_displaced)
